@@ -1,124 +1,249 @@
-import { supabase } from "./client";
+import { supabase } from './client';
+import type { Database } from './types';
 
-const SESSION_KEY = "current_test_session_id";
-
-export async function getCurrentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
-}
-
-export function getSavedSessionId(): string | null {
-  return localStorage.getItem(SESSION_KEY);
-}
-
-export function saveSessionId(sessionId: string) {
-  localStorage.setItem(SESSION_KEY, sessionId);
-}
-
+/**
+ * Create a new test session for the current user
+ * Stores session ID in localStorage for use in test pages
+ */
 export async function ensureSession(): Promise<string> {
-  const existing = getSavedSessionId();
-  if (existing) return existing;
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not authenticated");
-  const { data, error } = await supabase
-    .from("test_sessions")
-    .insert({ user_id: userId })
-    .select("id")
-    .single();
-  if (error) throw error;
-  saveSessionId(data.id);
-  return data.id;
-}
+  try {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      throw new Error('User not authenticated. Please sign in first.');
+    }
 
-export async function addTestResult(params: {
-  sessionId?: string;
-  testType:
-    | "memory"
-    | "fluency"
-    | "clock"
-    | "reaction"
-    | "digit_span"
-    | "recall";
-  rawData?: unknown;
-  score?: number;
-}): Promise<string> {
-  const session_id = params.sessionId ?? (await ensureSession());
-  const { data, error } = await supabase
-    .from("test_results")
-    .insert({
-      session_id,
-      test_type: params.testType,
-      raw_data: params.rawData ?? null,
-      score: params.score ?? null,
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
-  return data.id;
-}
+    // Verify profile exists (created by trigger)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
 
-export async function enqueueAnalysisAndProcess(sessionId?: string) {
-  const sid = sessionId ?? (await ensureSession());
-  const { data: job, error: jobErr } = await supabase
-    .from("analysis_jobs")
-    .insert({ session_id: sid })
-    .select("id")
-    .single();
-  if (jobErr) throw jobErr;
+    if (profileError || !profile) {
+      throw new Error('User profile not found. Please try signing in again.');
+    }
 
-  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-analysis`;
-  const { data: session } = await supabase.auth.getSession();
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.session?.access_token ?? ""}`,
-    },
-    body: JSON.stringify({ session_id: sid, job_id: job.id }),
-  });
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg);
+    // Create new test session
+    const { data: session, error: sessionError } = await supabase
+      .from('test_sessions')
+      .insert({
+        user_id: user.id,
+        started_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+
+    if (sessionError || !session) {
+      throw new Error('Failed to create test session');
+    }
+
+    // Store session ID in localStorage
+    localStorage.setItem('currentSessionId', session.id);
+    
+    return session.id;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('ensureSession error:', error);
+    throw new Error(`Failed to start test session: ${message}`);
   }
-  return sid;
 }
 
-export async function fetchSessionAndResults(sessionId?: string) {
-  const sid = sessionId ?? (await ensureSession());
-  const { data: session, error: sErr } = await supabase
-    .from("test_sessions")
-    .select("id, overall_risk_score, started_at, completed_at")
-    .eq("id", sid)
-    .single();
-  if (sErr) throw sErr;
-  const { data: results, error: rErr } = await supabase
-    .from("test_results")
-    .select("test_type, score, interpretation")
-    .eq("session_id", sid)
-    .order("created_at", { ascending: true });
-  if (rErr) throw rErr;
-  return { session, results } as const;
+/**
+ * Get current session ID from localStorage
+ */
+export function getCurrentSessionId(): string | null {
+  return localStorage.getItem('currentSessionId');
 }
 
-export async function generateReport(sessionId?: string) {
-  const sid = sessionId ?? (await ensureSession());
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Not authenticated");
-  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-report`;
-  const { data: session } = await supabase.auth.getSession();
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.session?.access_token ?? ""}`,
-    },
-    body: JSON.stringify({ session_id: sid, patient_id: userId }),
-  });
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg);
+/**
+ * Clear session ID from localStorage
+ */
+export function clearSessionId(): void {
+  localStorage.removeItem('currentSessionId');
+}
+
+/**
+ * Save individual test result
+ */
+export async function saveTestResult(
+  sessionId: string,
+  testType: Database['public']['Enums']['test_type'],
+  score: number,
+  rawData?: Record<string, any>
+) {
+  try {
+    const { data, error } = await supabase
+      .from('test_results')
+      .insert({
+        session_id: sessionId,
+        test_type: testType,
+        score,
+        raw_data: rawData || {},
+        interpretation: `${testType}: ${score}/10`,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('saveTestResult error:', error);
+    throw new Error(`Failed to save ${testType} test result`);
   }
-  return (await res.json()) as { path: string; url: string | null };
 }
 
+/**
+ * Complete a test session with overall risk score
+ */
+export async function completeSession(sessionId: string, overallRiskScore: number) {
+  try {
+    const { data, error } = await supabase
+      .from('test_sessions')
+      .update({
+        completed_at: new Date().toISOString(),
+        overall_risk_score: overallRiskScore,
+      })
+      .eq('id', sessionId)
+      .select()
+      .single();
 
+    if (error) throw error;
+    
+    // Clear session from storage after completion
+    clearSessionId();
+    
+    return data;
+  } catch (error) {
+    console.error('completeSession error:', error);
+    throw new Error('Failed to complete test session');
+  }
+}
+
+/**
+ * Get all test results for a session
+ */
+export async function getSessionResults(sessionId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('test_results')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('getSessionResults error:', error);
+    return [];
+  }
+}
+
+/**
+ * Get user's profile
+ */
+export async function getUserProfile() {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      throw new Error('Not authenticated');
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('getUserProfile error:', error);
+    return null;
+  }
+}
+
+/**
+ * Get user's role
+ */
+export async function getUserRole() {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) return null;
+
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) return 'user'; // default role
+    return data?.role || 'user';
+  } catch (error) {
+    console.error('getUserRole error:', error);
+    return 'user';
+  }
+}
+
+/**
+ * Check if user is a clinician
+ */
+export async function isClinicianUser(): Promise<boolean> {
+  const role = await getUserRole();
+  return role === 'clinician';
+}
+
+/**
+ * Get all user sessions (clinician only)
+ */
+export async function getAllSessions() {
+  try {
+    // RLS will handle access control
+    const { data, error } = await supabase
+      .from('test_sessions')
+      .select(`
+        *,
+        profiles:user_id (name, email, age),
+        test_results (*)
+      `)
+      .order('started_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('getAllSessions error:', error);
+    return [];
+  }
+}
+
+/**
+ * Save audio recording for test result
+ */
+export async function saveAudioRecording(
+  testResultId: string,
+  fileUrl: string,
+  transcription?: string,
+  acousticFeatures?: Record<string, any>
+) {
+  try {
+    const { data, error } = await supabase
+      .from('audio_recordings')
+      .insert({
+        test_result_id: testResultId,
+        file_url: fileUrl,
+        transcription,
+        acoustic_features: acousticFeatures || {},
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('saveAudioRecording error:', error);
+    throw new Error('Failed to save audio recording');
+  }
+}

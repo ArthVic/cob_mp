@@ -61,7 +61,7 @@ const Auth = () => {
       if (error instanceof z.ZodError) {
         toast({
           title: "Validation Error",
-          description: error.errors[0].message,
+          description: error.errors[0]?.message || "Validation failed",
           variant: "destructive",
         });
         return;
@@ -70,20 +70,28 @@ const Auth = () => {
 
     setLoading(true);
     
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginData.email,
-      password: loginData.password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginData.email,
+        password: loginData.password,
+      });
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Login Failed",
-        description: error.message,
+        title: "Login Error",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -95,7 +103,7 @@ const Auth = () => {
       if (error instanceof z.ZodError) {
         toast({
           title: "Validation Error",
-          description: error.errors[0].message,
+          description: error.errors[0]?.message || "Validation failed",
           variant: "destructive",
         });
         return;
@@ -104,32 +112,104 @@ const Auth = () => {
 
     setLoading(true);
     
-    const { error } = await supabase.auth.signUp({
-      email: signupData.email,
-      password: signupData.password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
+    try {
+      // Step 1: Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: signupData.email,
+        password: signupData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            name: signupData.name,
+            age: parseInt(signupData.age),
+          }
+        }
+      });
+
+      if (authError) {
+        toast({
+          title: "Signup Failed",
+          description: authError.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!authData.user) {
+        toast({
+          title: "Signup Error",
+          description: "Failed to create user account",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Create profile in profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: signupData.email,
           name: signupData.name,
           age: parseInt(signupData.age),
-        }
-      }
-    });
+        });
 
-    if (error) {
-      toast({
-        title: "Signup Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        toast({
+          title: "Profile Error",
+          description: "Account created but profile setup failed. Please try logging in.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       toast({
         title: "Account Created",
-        description: "You can now log in with your credentials.",
+        description: "Check your email to verify your account, then you can log in.",
       });
+
+      // Reset form
+      setSignupData({ email: "", password: "", name: "", age: "" });
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast({
+        title: "Signup Error",
+        description: "An unexpected error occurred during signup",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/` },
+      });
+
+      if (error) {
+        toast({
+          title: "Google Sign-In Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Sign-In Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -156,6 +236,7 @@ const Auth = () => {
                     required
                     value={loginData.email}
                     onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -166,6 +247,7 @@ const Auth = () => {
                     required
                     value={loginData.password}
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
@@ -177,17 +259,8 @@ const Auth = () => {
                   variant="outline"
                   type="button"
                   className="w-full"
-                  onClick={async () => {
-                    setLoading(true);
-                    try {
-                      await supabase.auth.signInWithOAuth({
-                        provider: 'google',
-                        options: { redirectTo: `${window.location.origin}/` },
-                      });
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
                 >
                   Continue with Google
                 </Button>
@@ -204,6 +277,7 @@ const Auth = () => {
                     required
                     value={signupData.name}
                     onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -216,6 +290,7 @@ const Auth = () => {
                     required
                     value={signupData.age}
                     onChange={(e) => setSignupData({ ...signupData, age: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -226,6 +301,7 @@ const Auth = () => {
                     required
                     value={signupData.email}
                     onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -236,6 +312,7 @@ const Auth = () => {
                     required
                     value={signupData.password}
                     onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
@@ -247,17 +324,8 @@ const Auth = () => {
                   variant="outline"
                   type="button"
                   className="w-full"
-                  onClick={async () => {
-                    setLoading(true);
-                    try {
-                      await supabase.auth.signInWithOAuth({
-                        provider: 'google',
-                        options: { redirectTo: `${window.location.origin}/` },
-                      });
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
                 >
                   Continue with Google
                 </Button>

@@ -1,73 +1,239 @@
-# Welcome to your Lovable project
+# Cognitive Health Screening
 
-## Project info
+An AI-powered web application for early dementia detection through a comprehensive suite of cognitive assessments. Complete 5 validated cognitive tests in approximately 15 minutes to receive personalized insights about cognitive health.
 
-**URL**: https://lovable.dev/projects/6b9dfed5-27e5-4c07-ae3a-03e09bbea54a
+## 🧠 Overview
 
-## How can I edit this code?
+This application provides a user-friendly interface for cognitive health screening, featuring multiple scientifically-validated tests designed to assess various aspects of cognitive function. The platform securely stores user data, demographic information, and test results to track cognitive health over time.
 
-There are several ways of editing your application.
+## ✨ Features
 
-**Use Lovable**
+- **Multiple Cognitive Assessments**
+  - Memory Test
+  - Reaction Time Test
+  - Verbal Fluency Test
+  - Clock Drawing Test
+  - Digit Span Test
+  - Recall Test
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6b9dfed5-27e5-4c07-ae3a-03e09bbea54a) and start prompting.
+- **User Management**
+  - Secure authentication via Supabase
+  - User session management
+  - Demographic data collection
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Results & Analytics**
+  - Comprehensive test results display
+  - AI-powered analysis and reporting
+  - Historical tracking capabilities
 
-**Use your preferred IDE**
+- **Modern UI/UX**
+  - Responsive design with Tailwind CSS
+  - Accessible components from shadcn/ui
+  - Smooth navigation with React Router
+  - Dark mode support
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠️ Tech Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Frontend
+- **React 18** - UI library
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **React Router DOM** - Client-side routing
+- **TanStack Query** - Data fetching and state management
 
-Follow these steps:
+### UI Components & Styling
+- **shadcn/ui** - Component library (Radix UI primitives)
+- **Tailwind CSS** - Utility-first CSS framework
+- **Lucide React** - Icon library
+- **Sonner** - Toast notifications
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+### Backend & Database
+- **Supabase** - Backend as a Service
+  - Authentication
+  - PostgreSQL database
+  - Edge functions for AI analysis
+
+### Form Management & Validation
+- **React Hook Form** - Form state management
+- **Zod** - Schema validation
+- **@hookform/resolvers** - Form validation integration
+
+### Additional Libraries
+- **date-fns** - Date utilities
+- **recharts** - Data visualization
+- **next-themes** - Theme management
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** (v18 or higher) - [Download Node.js](https://nodejs.org/)
+- **npm** or **bun** - Package manager
+- **Git** - Version control
+
+## 🚀 Getting Started
+
+### 1. Clone the Repository
+
+```bash
 git clone <YOUR_GIT_URL>
+cd cob_mp
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 2. Install Dependencies
 
-# Step 3: Install the necessary dependencies.
-npm i
+Using npm:
+```bash
+npm install
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Or using bun:
+```bash
+bun install
+```
+
+### 3. Environment Setup
+
+Create a `.env.local` file in the root directory with your Supabase credentials:
+
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### 4. Start Development Server
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📁 Project Structure
 
-**Use GitHub Codespaces**
+```
+cob_mp/
+├── public/              # Static assets
+├── src/
+│   ├── components/      # Reusable UI components
+│   │   └── ui/         # shadcn/ui components
+│   ├── pages/          # Route components
+│   │   ├── Index.tsx
+│   │   ├── Auth.tsx
+│   │   ├── Demographics.tsx
+│   │   ├── TestIntro.tsx
+│   │   ├── MemoryTest.tsx
+│   │   ├── ReactionTest.tsx
+│   │   ├── FluencyTest.tsx
+│   │   ├── ClockTest.tsx
+│   │   ├── DigitTest.tsx
+│   │   ├── RecallTest.tsx
+│   │   ├── Results.tsx
+│   │   └── NotFound.tsx
+│   ├── hooks/          # Custom React hooks
+│   ├── integrations/   # Third-party integrations
+│   │   └── supabase/   # Supabase client and API
+│   ├── lib/            # Utility functions
+│   ├── App.tsx         # Main application component
+│   ├── main.tsx        # Application entry point
+│   └── index.css       # Global styles
+├── supabase/           # Supabase configuration
+│   ├── functions/      # Edge functions
+│   └── migrations/     # Database migrations
+├── package.json
+├── vite.config.ts
+└── tailwind.config.ts
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📜 Available Scripts
 
-## What technologies are used for this project?
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Build for production
+- `npm run build:dev` - Build in development mode
+- `npm run preview` - Preview production build locally
+- `npm run lint` - Run ESLint
 
-This project is built with:
+## 🔧 Configuration
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Vite Configuration
 
-## How can I deploy this project?
+The development server runs on port `8080` by default. You can modify this in `vite.config.ts`.
 
-Simply open [Lovable](https://lovable.dev/projects/6b9dfed5-27e5-4c07-ae3a-03e09bbea54a) and click on Share -> Publish.
+### Tailwind CSS
 
-## Can I connect a custom domain to my Lovable project?
+Tailwind is configured with custom settings in `tailwind.config.ts`, including:
+- Custom color schemes
+- Animation utilities
+- Typography plugin support
 
-Yes, you can!
+### TypeScript
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+The project uses strict TypeScript configuration with path aliases:
+- `@/*` maps to `./src/*`
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 🗄️ Database
+
+The project uses Supabase PostgreSQL database. Database migrations are located in `supabase/migrations/`.
+
+### Edge Functions
+
+Supabase Edge Functions are located in `supabase/functions/`:
+- `generate-report` - Generates analysis reports
+- `process-analysis` - Processes test results
+
+## 🏗️ Building for Production
+
+```bash
+npm run build
+```
+
+The production build will be output to the `dist/` directory.
+
+To preview the production build:
+
+```bash
+npm run preview
+```
+
+## 🔐 Authentication
+
+The application uses Supabase Authentication. Users must authenticate before accessing tests and viewing results. Authentication state is managed globally through Supabase's session management.
+
+## 🧪 Cognitive Tests
+
+The application includes six validated cognitive assessments:
+
+1. **Memory Test** - Assesses working memory capacity
+2. **Reaction Test** - Measures reaction time and processing speed
+3. **Fluency Test** - Evaluates verbal fluency and language skills
+4. **Clock Test** - Tests visuospatial abilities and executive function
+5. **Digit Test** - Assesses attention and working memory
+6. **Recall Test** - Evaluates memory recall abilities
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is private and proprietary.
+
+## 🆘 Support
+
+For issues and questions, please open an issue in the repository or contact the development team.
+
+## 🔗 Related Links
+
+- [React Documentation](https://react.dev/)
+- [Vite Documentation](https://vitejs.dev/)
+- [Supabase Documentation](https://supabase.com/docs)
+- [shadcn/ui Documentation](https://ui.shadcn.com/)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+
+---
+
+Built with ❤️ for cognitive health awareness
